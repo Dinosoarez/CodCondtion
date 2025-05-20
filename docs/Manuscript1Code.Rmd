@@ -1,0 +1,1665 @@
+---
+title: "CodBodyCondition"
+author: "MS"
+date: "2025-05-20"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+In this project, I use DFO data on cod from 1977-2021 to create a model describing body condition overtime.
+In this script we will open the cleaned data file then go through model selection. After creating the optimal model,
+we use plotting functions to be able to visually interpret the model results.
+
+
+## Data Set Up
+
+Here we load in relevant packages and our cleaned data.
+
+```{r packages, echo=TRUE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+library(viridis)
+library(sf)
+library(tidyverse)
+library(glmmTMB)
+library(dplyr)
+library(ggOceanMaps)
+library(patchwork)
+library(ggeffects)
+library(extrafont)
+library(corrplot)
+library(data.table)
+
+load('gutcod_clean.RData') #df cleaned and including relevant colums
+                          #outliers and NAs removed, individuals under 15cm removed
+                          #after initial model creation we also removed the outliers 
+                          #that were out of the general trend of residuals
+
+#data is set up with columns denoting: year, month, day, species, length, sex, weight, age,
+#NAFO Division, season, maturity, gutted weight, gonad weight, length bin, and a dummy varible
+```
+
+Next we go through model selection using GLMMTMB starting from the most simple model.
+As we make more complex models we compare the number of effects and the AIC/BIC. These
+models use a quadratic variace structure to account for increasing varation in weight for 
+larger cod.
+
+```{r Models, echo=TRUE}
+    #model testing from motel table in Results
+#                                       fixed eff       quadratic dispersion factor
+#M1 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv, dispformula = ~ poly(length, 2), data=gutcod_clean)
+#AIC        BIC
+#-200514.5 -200418.3
+#                                                     dum var allows for single AR1 eff instead of interaction
+#M2 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-211185.5 -211070.1
+
+#M3 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                lenbin, dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-212754.8 -212620.2
+
+#M4 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) + ar1(month-1|lenbin) +
+#                lenbin, dispformula = ~ poly(length, 2), data=gutcod_clean)
+#no conergence
+
+#M5 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) +
+#                ar1(month-1|lenbin), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-213762.8 -213628.1
+
+#M6 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) +
+#                ar1(month-1|lenbin) + ar1(month-1|year), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-219716.5 -219562.7
+
+#M7 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) +
+#                ar1(month-1|lenbin) + ar1(month-1|year) + ar1(year-1|dum), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#no convergence
+
+#M8 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|dum), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-216747.9 -216594.0
+
+#M9 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|dum) + ar1(year-1|month), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#no conv
+
+#M10 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|month), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-219716.4 -219562.5
+
+#M11 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(month-1|year), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-219725.9 -219552.8
+
+#M12 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|month) + sex, dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-219715.7 -219552.2
+
+#M13 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|month) + sex + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-221065.7 -220883.0 
+
+#M14 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
+#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean)
+#-221076.5 -220903.4
+
+
+#number of fixed and random effects in model table p & q
+
+num_effs <- function(model){
+  num_fixed <- length(model$fit$par)
+  print('Fixed Effects:')
+  print(num_fixed)
+  
+  num_random <- length(unlist(ranef(model)))
+  print('Random Effects:')
+  print(num_random)
+}
+
+
+#model 14 is equivilent to NM6.2, old notation was retained
+#NM6.2 <- M14
+
+#NM6.2 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) + ar1(month-1|lenbin) +
+#     ar1(year-1|month) + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean)   
+load('NM6.2.RData')
+
+#NM6.2_total_weight <- glmmTMB(log(weight) ~ log(length) + NAFOdiv + ar1(month-1|dum) + ar1(month-1|lenbin) +
+#                ar1(year-1|month) + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean) 
+load('NM6.2_total_weight.RData')
+
+```
+
+
+
+## Plotting The Predicted Gutted Weight 
+
+The following 2 plots represent the predicted gutted weight of a 40cm individual Atlantic Cod in a single month from 1977 - 2021. Different color lines represent different NAFO Divisions.
+
+May:
+```{r Predicted Weight May, echo=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+#nafo_2j_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[2J]','month[5]'), margin='empirical') 
+#nafo_3k_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3K]','month[5]'), margin='empirical') 
+#nafo_3l_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3L]','month[5]'), margin='empirical') 
+#nafo_3n_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3N]','month[5]'), margin='empirical') 
+#nafo_3o_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3O]','month[5]'), margin='empirical') 
+#nafo_3p_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3P]','month[5]'), margin='empirical') 
+
+#concatonate all the dfs into one MAY
+
+#nafo_pred_may <- bind_rows(nafo_2j_year_may,nafo_3k_year_may,nafo_3l_year_may,nafo_3n_year_may,
+#             nafo_3o_year_may,nafo_3p_year_may)
+
+load('nafo_pred_may.RData')
+
+nafo_year_pred_weight <- function(prediction_df){ #takes df made from ggpredict
+
+  p <- ggplot(prediction_df, aes(x=x, y=predicted, group=facet))  +
+      geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = "grey70", alpha=0.5) +   #create the confidence intervals
+      geom_line(aes(color=facet),linewidth=1)+   #show point estimates
+      scale_color_viridis_d(option = "D", end = .9) + #set colors
+      xlab('Year')+
+      ylab('Predicted Weight (kg)')+ #label axis
+      theme_bw()+
+      scale_x_discrete(breaks = c(seq(1980,2020, 10))) +  #set manual labels on x axis
+      theme(legend.title = element_blank(),
+            legend.text = element_text(size =12),
+            axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size =15),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  #put in the relevant gid options
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  
+  p
+  #dfname <- deparse(substitute(prediction_df))   #use this code if you want to save the jpegs
+  #name <- paste(dfname,".jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+nafo_year_pred_weight(nafo_pred_may)
+```
+June:
+```{r Predicted Weight June, echo=FALSE}
+#june
+#nafo_2j_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[2J]','month[6]'), margin='empirical') 
+#nafo_3k_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3K]','month[6]'), margin='empirical') 
+#nafo_3l_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3L]','month[6]'), margin='empirical') 
+#nafo_3n_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3N]','month[6]'), margin='empirical') 
+#nafo_3o_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3O]','month[6]'), margin='empirical') 
+#nafo_3p_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3P]','month[6]'), margin='empirical') 
+
+#nafo_pred_june <- bind_rows(nafo_2j_year_june,nafo_3k_year_june,nafo_3l_year_june
+#                               ,nafo_3n_year_june,nafo_3o_year_june,nafo_3p_year_june)
+
+load('nafo_pred_june.RData')
+nafo_year_pred_weight(nafo_pred_june)
+```
+## Plotting The Gutted Model Effects
+
+These plots show the individual effects of each of the variables included in the model. These effects aggregate so looking at individual plots will not show the full picture unlike the previous predicted weight plots.
+
+
+First we plot the effect of month on condition.
+```{r Month Gut Effect, echo=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+month_effect <- function(model,df=gutcod_clean){
+  
+  conf <- as.data.frame(glmmTMB::ranef(model, condVar = TRUE))   #pull out confidence intervals
+  
+  ef_month_final <- mutate(conf, lower= condval - (2*condsd), upper= condval + (2*condsd))  #use sd to create the 95% CI
+  ef_month_final <- ef_month_final[1:12,c(3,5:8)]    #select and keep relevant columns
+  ef_month_final$term <- str_replace(ef_month_final$term, "month", "")  #take month out of var name
+  ef_month_final$term <- as.integer(ef_month_final$term)
+  ef_month_final$term <- as.factor(ef_month_final$term)   
+  
+  p <- ggplot(ef_month_final, aes(x=term, y=condval))  +
+    geom_errorbar(aes(ymin=lower,ymax=upper,width=0.2))+
+    geom_point()+
+    xlab('Month')+
+    ylab('Effect')+
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", size= 1) +
+    theme_bw()+
+    theme(axis.text.x = element_text(vjust = .8, size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size =15),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,"_month_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+  
+month_effect(NM6.2)
+```
+Next we plot the fixed effect of NAFO Division. This effect includes the intercept effect
+so the results are negative. This can be ignored as the intercept effect does not change the 
+relative difference between divisions.
+
+```{r NAFO Gut Effect, echo=FALSE}
+
+nafo_effect <- function(model,df=gutcod_clean){
+  nafos <- levels(df$NAFOdiv)  #creates list of divisions
+  confints <- confint(model)[c(1,3:7),]   #save CIs
+  ef_nafo <- as.data.frame(confints,nafos) #save the effects
+  
+  start <- ef_nafo[1,]  #set int as start
+  ef_nafo_final <- as.data.frame(start)
+  for (i in 1:nrow(ef_nafo)){   #iterate through the df and create objects for relevant columns
+    if (i != 1){
+      worklist <- ef_nafo[i,]
+      a <- start[1] + worklist[1]
+      b <- start[2] + worklist[2]
+      c <- start[3] + worklist[3]
+      
+      ef_nafo_final[nrow(ef_nafo_final) + 1,] = c(a,b,c)
+    }
+  }
+  ef_nafo_final$nafos <- nafos  #save NAFO divs in final df
+  
+  p <- ggplot(ef_nafo_final, aes(x=nafos, y=Estimate))+
+    geom_errorbar(aes(ymin=ef_nafo_final$`97.5 %`,ymax=ef_nafo_final$`2.5 %`,width=0.2))+
+    geom_point()+
+    xlab('NAFO Division')+
+    ylab('Effect')+
+    theme_bw()+
+    theme(axis.text.x = element_text(vjust = .8, size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size =15),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,"_nafo_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+nafo_effect(NM6.2)
+```
+The Year by NAFO division effect is our first random interaction effect. This plot 
+shows how condition has changed over time in each division.
+
+```{r Year by NAFO Gut Effect, echo=FALSE}
+
+year_nafo_effect <- function(model,df=gutcod_clean){  #function pulls a model, using mod11 and cod df
+  
+  numyears <- nlevels(df$year) #understands the amount of years in dataset
+  nafos <- levels(df$NAFOdiv) #creates vector of NAFO divs in order
+  nafonum <- length(nafos)  #takes number of NAFO divs
+  
+  effects <- ranef(model) 
+  efnafo <- as.data.frame(x=effects$cond$NAFOdiv) #create large df with main effect of year 
+  
+  NAFOdiv <- rep(nafos,12)
+  
+  ef_year <- efnafo[,1:numyears] #this works by assessing the levels of years in the df
+  year <- rep(seq(1977,2021),each = nafonum)
+  NAFOdiv <- rep(nafos,numyears)
+  ef_year_final <- as.data.frame(year,NAFOdiv)
+  
+  yints <- character()
+  all_yints <- c()   #df for all point estimates
+  
+  for (i in 1:ncol(ef_year)) {
+    yints <- ef_year[i]
+    all_yints <- c(all_yints, yints[,1])  #use for loop to pull out the relevant intercepts
+  }
+  
+  ef_year_final$effect <- all_yints
+  ef_year_final <- tibble::rownames_to_column(ef_year_final, var= 'NAFOdiv')  #flip df
+  ef_year_final[1:2] <- lapply(ef_year_final[1:2], as.factor)
+  
+  yearlist <- as.character(seq(1977,2021))
+  for (i in 1:length(yearlist)) {
+    yearlist[i] <- paste('year', yearlist[i], sep='')
+  }
+  
+  conf <- as.data.frame(glmmTMB::ranef(model, condVar = TRUE))
+  year_conf <- subset(conf,term %in% yearlist & conf$grpvar == 'NAFOdiv')
+  
+  
+  ef_year_final$sd <- year_conf$condsd
+  
+  ef_year_final <- ef_year_final %>%  #manually create the 95% CIs
+    mutate(lower = effect - (1.96*sd)) %>%
+    mutate(upper = effect + (1.96*sd))
+  
+  #for prez subset
+  #mainregionjs <- c('2J','3K','3N','3O')
+  #ef_year_final <- ef_year_final %>%
+  #filter(NAFOdiv %in% mainregionjs)
+  
+  
+  p <- ggplot(ef_year_final, aes(x=year, y=effect, group= NAFOdiv)) +
+    facet_wrap(~NAFOdiv) + 
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70") +
+    geom_line(size=1) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", size= 1) +
+    scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+    xlab('Year')+
+    ylab('Effect')+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = .8,
+                                     size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size=15, colour = "black"),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,"_year_nafo_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+  
+}
+
+year_nafo_effect(NM6.2)
+```
+The month by length bin effect shows the seasonality of condtion for different length 
+groups.
+
+```{r Month by Length Bin Gut Effect, echo=FALSE}
+
+month_bin_effect <- function(model,df=gutcod_clean){  #
+  
+  effects <- ranef(model) 
+  ef_month <- as.data.frame(x=effects$cond$lenbin) #create df with main effect of month on its own
+  month <- rep(seq(1,12), each =3)
+  lenbin <- rep(seq(1,3), 12)  #maunally set up df
+  ef_month_final <- as.data.frame(month,lenbin)
+  
+  ints <- character()
+  all_ints <- c()
+  
+  for (i in 1:ncol(ef_month)) {
+    ints <- ef_month[i]
+    all_ints <- c(all_ints, ints[,1])
+  }
+  
+  ef_month_final$effect <- all_ints
+  ef_month_final <- tibble::rownames_to_column(ef_month_final, var= 'lenbin')
+  
+  monthlist <- c('month1','month2','month3','month4','month5','month6',
+                 'month7','month8','month9','month10','month11','month12')
+  
+  conf <- as.data.frame(glmmTMB::ranef(model, condVar = TRUE))
+  month_conf <- subset(conf,term %in% monthlist & conf$grpvar == 'lenbin')
+  ef_month_final$sd <- month_conf$condsd
+  
+  ef_month_final <- ef_month_final %>%
+    mutate(lower = effect - (1.96*sd)) %>%
+    mutate(upper = effect + (1.96*sd))
+  
+  #ef_month_final$month <- as.factor(ef_month_final$month)
+  
+  lennames <- c('1'='15-30cm', '2'='30-80cm', '3'='+80cm')
+  
+  p <- ggplot(ef_month_final, aes(x=month, y=effect))  +
+    facet_wrap(~lenbin, labeller = as_labeller(lennames)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70") +
+    geom_line(linewidth=1.2)+
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1) +
+    xlab('Month')+
+    ylab('Effect')+
+    theme_bw()+
+    scale_x_continuous(breaks = c(seq(1,12,2)))+
+    theme(axis.text.x = element_text(vjust = .8, size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size =15),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,"_month_lenbin_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+month_bin_effect(NM6.2)
+```
+The year by month effect shows how seasonality affects condition over time. This effect
+highlights how factors like prey availibility changes over time.
+
+```{r Year by Month Gut Effect, echo=FALSE}
+
+year_month_effect <- function(model,df=gutcod_clean, subset=FALSE){  #function pulls a model, using mod11 and cod df
+  
+  effects <- ranef(model) 
+  ef_year <- as.data.frame(x=effects$cond$month) #create large df with main effect of month on its own
+  month <- rep(seq(1,12), 45)
+  year <- rep(seq(1977,2021),each=12)
+  
+  ef_year_final <- as.data.frame(year,month)
+  ef_year_final <- tibble::rownames_to_column(ef_year_final, var= 'month')
+  
+  ints <- character()
+  all_ints <- c()
+  
+  for (i in 1:ncol(ef_year)) {
+    ints <- ef_year[i]
+    all_ints <- c(all_ints, ints[,1])
+  }
+  ef_year_final$effect <- all_ints
+  
+  yearlist <- as.character(seq(1977,2021))
+  monthlist <- c('month1','month2','month3','month4','month5','month6',
+                 'month7','month8','month9','month10','month11','month12')
+  
+  for (i in 1:length(yearlist)) {
+    yearlist[i] <- paste('year', yearlist[i], sep='')
+  }
+  
+  conf <- as.data.frame(glmmTMB::ranef(model, condVar = TRUE))
+  year_conf <- subset(conf, conf$grpvar == 'month') #term %in% monthlist &
+  
+  
+  ef_year_final$sd <- year_conf$condsd
+  
+  ef_year_final <- ef_year_final %>%
+    mutate(lower = effect - 1.96*sd) %>%
+    mutate(upper = effect + 1.96*sd)
+  
+  ef_year_final$month <- as.numeric(ef_year_final$month)
+  ef_year_final$month <- as.factor(ef_year_final$month)
+  ef_year_final$month <- ordered(ef_year_final$month)
+  
+  # subset plot
+  sub <- ''
+  if (subset == TRUE) {
+    sub <- '_subset'
+    mainmonths <- c(4,5,6,10,11,12)
+    ef_year_final <- ef_year_final %>%
+      filter(month %in% mainmonths)
+  }
+  
+  
+  monthnames <- c('1'='January', '2'='February', '3'='March', '4'='April', '5'='May',
+                  '6'='June', '7'='July', '8'='August', '9'='September', '10'='October',
+                  '11'='November', '12'='December')
+  
+  p <- ggplot(ef_year_final, aes(x=year, y=effect, group= month))+ 
+    facet_wrap(~month, nrow=3, labeller = as_labeller(monthnames)) + 
+    theme(axis.text.x = element_text(angle = 90)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70")+
+    geom_line(linewidth=1) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1) +
+    xlab('Year')+
+    ylab('Effect')+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, vjust = .6,size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size=15, colour = "black"),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,sub,"_year_month_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+year_month_effect(NM6.2)
+
+year_month_effect(NM6.2, gutcod_clean, TRUE)
+
+```
+## Total vs Gutted Model Effects
+
+These plots show the difference in individual model effects of the total (blue) and gutted (black) weight model.
+Fixed effects like NAFO division or month were not included because of the high degree of overlap.
+First we have the Year by Nafo Effect.
+
+```{r Total vs Gut Effects 1, echo=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+############################################
+##year grouped by nafo
+#########################################
+
+
+totalgut_nafo_year_effect <- function(totalmodel,totaldf,gutmodel){
+  
+  numyears <- nlevels(totaldf$year) #understands the amount of years in dataset
+  nafos <- levels(totaldf$NAFOdiv) #creates vector of NAFO divs in order
+  nafonum <- length(nafos)  #takes number of NAFO divs
+  NAFOdiv <- rep(nafos,12)
+  
+  total_effects <- ranef(totalmodel) #in random effects we will have NAFOdiv by month and year, year, and month (possibly varrying by model)
+  total_efnafo <- as.data.frame(x=total_effects$cond$NAFOdiv) #create large df with main effect of year and month
+  gut_effects <- ranef(gutmodel) #in random effects we will have NAFOdiv by month and year, year, and month (possibly varrying by model)
+  gut_efnafo <- as.data.frame(x=gut_effects$cond$NAFOdiv)
+  
+  
+  
+  total_ef_year <- total_efnafo[,1:numyears] #this works by assessing the levels of years in the df
+  gut_ef_year <- gut_efnafo[,1:numyears]
+  year <- rep(seq(1977,2021),each = nafonum)
+  NAFOdiv <- rep(nafos,numyears)
+  total_ef_year_final <- as.data.frame(year,NAFOdiv)
+  gut_ef_year_final <- as.data.frame(year,NAFOdiv)
+  
+  yintst <- character()
+  all_yintst <- c()
+  
+  for (i in 1:ncol(total_ef_year)) {
+    yintst <- total_ef_year[i]
+    all_yintst <- c(all_yintst, yintst[,1])
+  }
+  
+  yintsg <- character()
+  all_yintsg <- c()
+  
+  for (i in 1:ncol(gut_ef_year)) {
+    yintsg <- gut_ef_year[i]
+    all_yintsg <- c(all_yintsg, yintsg[,1])
+  }
+  
+  total_ef_year_final$effect <- all_yintst
+  total_ef_year_final <- tibble::rownames_to_column(total_ef_year_final, var= 'NAFOdiv')
+  total_ef_year_final[1:2] <- lapply(total_ef_year_final[1:2], as.factor)
+  
+  gut_ef_year_final$effect <- all_yintsg
+  gut_ef_year_final <- tibble::rownames_to_column(gut_ef_year_final, var= 'NAFOdiv')
+  gut_ef_year_final[1:2] <- lapply(gut_ef_year_final[1:2], as.factor)
+  
+  yearlist <- as.character(seq(1977,2021))
+  for (i in 1:length(yearlist)) {
+    yearlist[i] <- paste('year', yearlist[i], sep='')
+  }
+  
+  total_conf <- as.data.frame(glmmTMB::ranef(totalmodel, condVar = TRUE))
+  total_year_conf <- subset(total_conf,term %in% yearlist & total_conf$grpvar == 'NAFOdiv')
+  
+  gut_conf <- as.data.frame(glmmTMB::ranef(gutmodel, condVar = TRUE))
+  gut_year_conf <- subset(gut_conf,term %in% yearlist & gut_conf$grpvar == 'NAFOdiv')
+  
+  
+  total_ef_year_final$sd <- total_year_conf$condsd
+  gut_ef_year_final$sd <- gut_year_conf$condsd
+  
+  total_ef_year_final <- total_ef_year_final %>%
+    mutate(lower = effect - (1.96*sd)) %>%
+    mutate(upper = effect + (1.96*sd))
+  gut_ef_year_final <- gut_ef_year_final %>%
+    mutate(lower = effect - (1.96*sd)) %>%
+    mutate(upper = effect + (1.96*sd))
+  
+  #for prez subset
+  #mainregionjs <- c('2J','3K','3N','3O')
+  #ef_year_final <- ef_year_final %>%
+  #filter(NAFOdiv %in% mainregionjs)
+  
+  
+  p <- ggplot(gut_ef_year_final, aes(x=year, y=effect, group= NAFOdiv)) + facet_wrap(~NAFOdiv) + 
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70") +
+    geom_ribbon(data=total_ef_year_final,aes(ymin= lower, ymax=upper, alpha=.5), fill='cyan3')+
+    geom_line(size=1) +
+    geom_line(data= total_ef_year_final, aes(x=year, y=effect), color='blue',linewidth=1.2)+
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", size= 1) +
+    scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+    xlab('Year')+
+    ylab('Effect')+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = .8,
+                                     size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size=15, colour = "black"),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          legend.position="none",
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,sub,"_nafo_year_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+totalgut_nafo_year_effect(NM6.2_total_weight,gutcod_clean,NM6.2)
+
+```
+
+Next is the year grouped by month effect.
+```{r Total vs Gut Effects 2, echo=FALSE}
+############################################
+##year grouped by month
+#########################################
+
+totalgut_year_month_effect <- function(totalmodel,totaldf,gutmodel, subset=FALSE){
+  
+  total_effects <- ranef(totalmodel) 
+  total_ef_year <- as.data.frame(x=total_effects$cond$month) #create large df with main effect of month on its own
+  gut_effects <- ranef(gutmodel) 
+  gut_ef_year <- as.data.frame(x=gut_effects$cond$month)
+  
+  month <- rep(seq(1,12),45)
+  year <- rep(seq(1977,2021),each=12)
+  
+  total_ef_year_final <- as.data.frame(year,month)
+  total_ef_year_final <- tibble::rownames_to_column(total_ef_year_final, var= 'month')
+  gut_ef_year_final <- as.data.frame(year,month)
+  gut_ef_year_final <- tibble::rownames_to_column(gut_ef_year_final, var= 'month')
+  
+  intst <- character()
+  all_intst <- c()     
+
+  for (i in 1:ncol(total_ef_year)) {
+    intst <- total_ef_year[i]
+    all_intst <- c(all_intst, intst[,1])
+  }
+  total_ef_year_final$effect <- all_intst
+  
+  intsg <- character()
+  all_intsg <- c() 
+  
+  for (i in 1:ncol(gut_ef_year)) {
+    intsg <- gut_ef_year[i]
+    all_intsg <- c(all_intsg, intsg[,1])
+  }
+  gut_ef_year_final$effect <- all_intsg
+
+  
+  yearlist <- as.character(seq(1977,2021))
+  
+  monthlist <- c('month1','month2','month3','month4','month5','month6',
+                 'month7','month8','month9','month10','month11','month12')
+  
+  for (i in 1:length(yearlist)) {
+    yearlist[i] <- paste('year', yearlist[i], sep='')
+  }
+
+  conf <- as.data.frame(glmmTMB::ranef(totalmodel, condVar = TRUE))
+  total_year_conf <- subset(conf,conf$grpvar == 'month')
+  
+  conf <- as.data.frame(glmmTMB::ranef(gutmodel, condVar = TRUE))
+  gut_year_conf <- subset(conf,conf$grpvar == 'month')
+  
+  total_ef_year_final$sd <- total_year_conf$condsd
+  gut_ef_year_final$sd <- gut_year_conf$condsd
+  
+  total_ef_year_final <- total_ef_year_final %>%
+    mutate(lower = effect - 1.96*sd) %>%
+    mutate(upper = effect + 1.96*sd)
+  gut_ef_year_final <- gut_ef_year_final %>%
+    mutate(lower = effect - 1.96*sd) %>%
+    mutate(upper = effect + 1.96*sd)
+ 
+  total_ef_year_final$month <- as.numeric(total_ef_year_final$month)
+  total_ef_year_final$month <- as.factor(total_ef_year_final$month)
+  total_ef_year_final$month <- ordered(total_ef_year_final$month)
+  
+  gut_ef_year_final$month <- as.numeric(gut_ef_year_final$month)
+  gut_ef_year_final$month <- as.factor(gut_ef_year_final$month)
+  gut_ef_year_final$month <- ordered(gut_ef_year_final$month)
+  
+  #subset plot
+  sub <- ''
+  if (subset == TRUE) {
+    sub <- '_subset'
+    mainmonths <- c(4,5,6,10,11,12)
+    total_ef_year_final <- total_ef_year_final %>%
+    filter(month %in% mainmonths)
+  gut_ef_year_final <- gut_ef_year_final %>%
+    filter(month %in% mainmonths)
+  }
+  
+  
+  monthnames <- c('1'='January', '2'='February', '3'='March', '4'='April', '5'='May',
+                  '6'='June', '7'='July', '8'='August', '9'='September', '10'='October',
+                  '11'='November', '12'='December')
+  
+  
+  p <- ggplot(data=gut_ef_year_final, aes(x=year, y=effect, group= month)) + 
+    facet_wrap(~month, nrow=3, labeller = as_labeller(monthnames)) + #change # of columns to 4 if not subsetting plot
+    theme(axis.text.x = element_text(angle = 90)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70")+
+    geom_ribbon(data=total_ef_year_final,aes(ymin= lower, ymax=upper, alpha=.5), fill='cyan3')+
+    geom_line(linewidth=1.2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1.2) +
+    geom_line(data= total_ef_year_final, aes(x=year, y=effect, group= month), color= 'blue',linewidth=1)+
+    xlab('Year')+
+    ylab('Effect')+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, vjust = .6
+                                     ,size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size=15, colour = "black"),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")),
+          legend.position="none")
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,sub,"_year_month_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+totalgut_year_month_effect(NM6.2_total_weight,gutcod_clean,NM6.2)
+
+totalgut_year_month_effect(NM6.2_total_weight,gutcod_clean,NM6.2, TRUE)
+```
+
+Next we have the month grouped by length bin effect.
+```{r Total vs Gut Effects 3, echo=FALSE}
+
+
+############################################
+## month grouped by lenbin
+#########################################
+
+totalgut_month_bin_effect <- function(totalmodel,totaldf,gutmodel){  
+  
+  total_effects <- ranef(totalmodel) 
+  total_ef_month <- as.data.frame(x=total_effects$cond$lenbin) #create df with main effect of month on its own
+  gut_effects <- ranef(gutmodel) 
+  gut_ef_month <- as.data.frame(x=gut_effects$cond$lenbin)
+  month <- rep(seq(1,12), each =3)
+  lenbin <- rep(seq(1,3), 12)
+  total_ef_month_final <- as.data.frame(month,lenbin)
+  gut_ef_month_final <- as.data.frame(month,lenbin)
+  
+  intst <- character()
+  all_intst <- c()
+  for (i in 1:ncol(total_ef_month)) {
+    intst <- total_ef_month[i]
+    all_intst <- c(all_intst, intst[,1])
+  }
+  
+  intsg <- character()
+  all_intsg <- c()
+  for (i in 1:ncol(gut_ef_month)) {
+    intsg <- gut_ef_month[i]
+    all_intsg <- c(all_intsg, intsg[,1])
+  }
+  
+  total_ef_month_final$effect <- all_intst
+  total_ef_month_final <- tibble::rownames_to_column(total_ef_month_final, var= 'lenbin')
+  
+  gut_ef_month_final$effect <- all_intsg
+  gut_ef_month_final <- tibble::rownames_to_column(gut_ef_month_final, var= 'lenbin')
+  
+  monthlist <- c('month1','month2','month3','month4','month5','month6',
+                 'month7','month8','month9','month10','month11','month12')
+  
+  total_conf <- as.data.frame(glmmTMB::ranef(totalmodel, condVar = TRUE))
+  total_month_conf <- subset(total_conf,term %in% monthlist & total_conf$grpvar == 'lenbin')
+  gut_conf <- as.data.frame(glmmTMB::ranef(gutmodel, condVar = TRUE))
+  gut_month_conf <- subset(gut_conf,term %in% monthlist & gut_conf$grpvar == 'lenbin')
+  
+  total_ef_month_final$sd <- total_month_conf$condsd
+  gut_ef_month_final$sd <- gut_month_conf$condsd
+  
+  total_ef_month_final <- total_ef_month_final %>%
+    mutate(lower = effect - (1.96*sd)) %>%
+    mutate(upper = effect + (1.96*sd))
+  gut_ef_month_final <- gut_ef_month_final %>%
+    mutate(lower = effect - (1.96*sd)) %>%
+    mutate(upper = effect + (1.96*sd))
+  
+  lennames <- c('1'='15-30cm', '2'='30-80cm', '3'='+80cm')
+  
+  p <- ggplot(data= gut_ef_month_final, aes(x=month, y=effect))  +
+    facet_wrap(~lenbin, labeller = as_labeller(lennames)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70") +
+    geom_ribbon(data=total_ef_month_final,aes(ymin= lower, ymax=upper, alpha=.5), fill='cyan3')+
+    geom_line(linewidth=1.2)+
+    #geom_ribbon(data= total_ef_month_final,aes(ymin = lower, ymax = upper), fill = "grey80") +
+    geom_line(data= total_ef_month_final, aes(x=month, y=effect), color='blue',linewidth=1.2)+
+    #for total y= -12.15       , for gutted y=
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1.2) +
+    xlab('Month')+
+    ylab('Effect')+
+    theme_bw()+
+    scale_x_continuous(breaks = c(seq(1,12,2)))+
+    theme(axis.text.x = element_text(vjust = .8, size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size =15),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          legend.position="none",
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  
+  p
+  #modname <- deparse(substitute(model))
+  #name <- paste(modname,sub,"_month_bin_effect.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+totalgut_month_bin_effect(NM6.2_total_weight,gutcod_clean,NM6.2)
+```
+
+## Model Residuals
+
+These plots show the residual plots of the model. Default shows the gutted weight model but there is code to show the total weight model as well.
+
+```{r Gut Model Residual, echo=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+
+
+total_resids <- function(model, df=gutcod_clean) {
+  modname <- deparse(substitute(model))
+  monthnames <- c('1'='January', '2'='February', '3'='March', '4'='April', '5'='May',
+                  '6'='June', '7'='July', '8'='August', '9'='September', '10'='October',
+                  '11'='November', '12'='December')
+  resid <- residuals(model)  #creates a temp df for the resids
+  residualdf <- cbind(df, data.frame(resid= resid))  #makes a new df with the residuals included
+  
+  p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+    stat_binhex(aes(fill = ..density..))+
+    scale_fill_viridis_c(option = "magma")+
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+    geom_smooth(method = "loess", se = FALSE)+
+    xlab('Length')+
+    ylab('Residual')+
+    theme_bw()+
+    theme(axis.text.x = element_text(size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size=15, colour = "black"),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"))
+  print(p)
+  #name <- paste(modname,"_length_resids.jpeg")
+  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+
+    
+    p <- ggplot(data=residualdf, aes(x=year, y=resid))+  #changed residualdf to df
+      stat_binhex(aes(fill = ..density..))+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      xlab('Year')+
+      ylab('Residual')+
+      theme_bw()+
+      scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"))
+    print(p)
+    #name <- paste(modname,"_year_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+    p <- ggplot(data=residualdf, aes(x=year, y=resid))+  #changed residualdf to df
+      facet_wrap(~month, scales = 'free_x')+
+      stat_binhex(aes(fill = ..density..),bins=10)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      xlab('Year')+
+      ylab('Residual')+
+      theme_bw()+
+      scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+      theme(axis.text.x = element_text(angle=45, size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"))
+    print(p)
+    #name <- paste(modname,"_year_month_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+  
+    
+    p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+      facet_wrap(~month, labeller = as_labeller(monthnames))+
+      stat_binhex(aes(fill = ..density..),bins = 15)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    print(p)
+    #name <- paste(modname,"_month_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=year, y=resid))+
+      facet_wrap(~month,scales = 'free_x', labeller = as_labeller(monthnames))+
+      stat_binhex(aes(fill = ..density..),bins = 15)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+      theme_bw()+
+      theme(axis.text.x = element_text(angle = 45, vjust = .6,size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_month_year_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+      facet_wrap(~season)+
+      stat_binhex(aes(fill = ..density..))+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_season_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+    p <- ggplot(data=residualdf, aes(x=year, y=resid))+
+      facet_wrap(~NAFOdiv)+
+      stat_binhex(aes(fill = ..density..))+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Year')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(angle = 45, vjust = .6,size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_NAFO_year_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+    p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+      facet_wrap(~NAFOdiv)+
+      stat_binhex(aes(fill = ..density..))+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_NAFO_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=NAFOdiv, y=resid))+
+      facet_wrap(~month, labeller = as_labeller(monthnames))+
+      stat_binhex(aes(fill = ..density..),bins=10)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('NAFO Div')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_NAFO_month_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=month, y=resid))+
+      facet_wrap(~NAFOdiv)+
+      stat_binhex(aes(fill = ..density..),bins=12)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Month')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_NAFO_month2_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+      facet_wrap(~lenbin, scales= 'free_x')+
+      stat_binhex(aes(fill = ..density..),bins=15)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_lenbin_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=month, y=resid))+
+      facet_wrap(~lenbin, scales= 'free_x')+
+      stat_binhex(aes(fill = ..density..),bins=13)+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Month')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_lenbin_month_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+      facet_wrap(~maturity, scales= 'free_x')+
+      stat_binhex(aes(fill = ..density..))+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_maturity_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+    p <- ggplot(data=residualdf, aes(x=length, y=resid))+
+      facet_wrap(~sex, scales= 'free_x')+
+      stat_binhex(aes(fill = ..density..))+
+      scale_fill_viridis_c(option = "magma")+
+      geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+      geom_smooth(method = "loess", se = FALSE)+
+      xlab('Length')+
+      ylab('Residual')+
+      theme_bw()+
+      theme(axis.text.x = element_text(size=12, colour = "black"),
+            axis.text.y = element_text(size=12, colour = "black"),
+            axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+            axis.title.y = element_text(size=15, face="bold", colour = "black"),
+            strip.text = element_text(size=15, colour = "black"),
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+            panel.background = element_blank(), axis.line = element_line(colour = "black"),
+            text=element_text(family="Times New Roman"),
+            strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+    
+    print(p)
+    #name <- paste(modname,"_sex_resids.jpeg")
+    #name <- str_replace_all(string=name, pattern=" ", repl="")
+    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$year), FUN=mean)
+      p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Year')+
+        ylab('Residual')+
+        scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+        theme_bw()+
+        theme(axis.text.x = element_text(angle = 45, vjust = .6,size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      print(p)
+      #name <- paste(modname,"_avg_year_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$year,residualdf$NAFOdiv), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
+        facet_wrap(~Group.2)+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Year')+
+        ylab('Residual')+
+        scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+        theme_bw()+
+        theme(axis.text.x = element_text(angle = 45, vjust = .6,size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_NAFO_year_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$year,residualdf$month), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
+        facet_wrap(~Group.2)+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Year')+
+        ylab('Residual')+
+        scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+        theme_bw()+
+        theme(axis.text.x = element_text(angle = 45, vjust = .6,size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_month_year_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$month,residualdf$NAFOdiv), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
+        facet_wrap(~Group.2)+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Month')+
+        ylab('Residual')+
+        theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_NAFO_month_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$month,residualdf$NAFOdiv), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.2, y=x))+
+        facet_wrap(~Group.1)+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('NAFO Div')+
+        ylab('Residual')+
+        theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_month_NAFO_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$lenbin), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Length Bin')+
+        ylab('Residual')+
+        theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_lenbin_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$lenbin,residualdf$month), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.2, y=x))+
+        facet_wrap(~Group.1)+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Month')+
+        ylab('Residual')+
+        theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_month_lenbin_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    
+      year_df<-aggregate(residualdf$resid, by = list(residualdf$sex), FUN=mean)
+      
+      p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
+        geom_point(colour="black", size=2)+
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth=1)+
+        geom_smooth(method = "loess", se = FALSE)+
+        xlab('Sex')+
+        ylab('Residual')+
+        theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+      
+      print(p)
+      #name <- paste(modname,"_avg_sex_resids.jpeg")
+      #name <- str_replace_all(string=name, pattern=" ", repl="")
+      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+total_resids(NM6.2)
+#total_resids(NM6.2_total_weight)
+```
+
+
+## Predicted vs Actual
+Below we check the predicted vs actual values that our model estimated compared to observed data.
+
+```{r Predicted vs Actual 1, echo=TRUE}
+
+predicted_actual <- function(model){
+  p <- ggplot(data = gutcod_clean, aes(x=predict(model), y=log(gutwt)))+
+    geom_point()+
+    xlab('Predicted Values')+
+    ylab('Observed Values')+ 
+    geom_abline(slope = 1, intercept = 0, )+
+    theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  p
+  #ggsave(filename = 'predicted_actual.jpeg', device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+predicted_actual(NM6.2)
+predicted_actual(NM6.2_total_weight)
+```
+
+Similar to the last plot we also show this plot as a histogram.
+```{r Predicted vs Actual 2, echo=TRUE}
+
+predicted_actual_histogram <- function(model){
+  p <- ggplot(data = gutcod_clean, aes(x=predict(model)))+
+    geom_histogram(binwidth = .5)+
+    xlab('Predicted Values')+
+    ylab('Observed Values')+ 
+    geom_abline(slope = 1, intercept = 0, )+
+    theme_bw()+
+        theme(axis.text.x = element_text(size=12, colour = "black"),
+              axis.text.y = element_text(size=12, colour = "black"),
+              axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+              axis.title.y = element_text(size=15, face="bold", colour = "black"),
+              strip.text = element_text(size=15, colour = "black"),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+              panel.background = element_blank(), axis.line = element_line(colour = "black"),
+              text=element_text(family="Times New Roman"),
+              strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  p
+  #ggsave(filename = 'predicted_actual_histogram.jpeg', device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+}
+
+predicted_actual_histogram(NM6.2)
+predicted_actual_histogram(NM6.2_total_weight)
+```
+
+## Correlation Plots
+Next we show the correlation matrix between the different NAFO divisions over time
+```{r Correlation Matrix 1, echo=TRUE}
+NAFO_year_corr_plot <- function(model=NM6.2,df=gutcod_clean){  #function pulls a model, using mod11 and cod df
+
+numyears <- nlevels(df$year) #understands the amount of years in dataset
+nafos <- levels(df$NAFOdiv) #creates vector of NAFO divs in order
+nafonum <- length(nafos)  #takes number of NAFO divs
+
+effects <- ranef(model) 
+efnafo <- as.data.frame(x=effects$cond$NAFOdiv) #create large df with main effect of year 
+
+NAFOdiv <- rep(nafos,12)
+
+ef_year <- efnafo[,1:numyears] #this works by assessing the levels of years in the df
+year <- rep(seq(1977,2021),each = nafonum)
+NAFOdiv <- rep(nafos,numyears)
+ef_year_final <- as.data.frame(year,NAFOdiv)
+
+yints <- character()
+all_yints <- c()   #df for all point estimates
+
+for (i in 1:ncol(ef_year)) {
+  yints <- ef_year[i]
+  all_yints <- c(all_yints, yints[,1])  #use for loop to pull out the relevant intercepts
+}
+
+ef_year_final$effect <- all_yints
+ef_year_final <- tibble::rownames_to_column(ef_year_final, var= 'NAFOdiv')  #flip df
+ef_year_final[1:2] <- lapply(ef_year_final[1:2], as.factor)
+
+yearlist <- as.character(seq(1977,2021))
+for (i in 1:length(yearlist)) {
+  yearlist[i] <- paste('year', yearlist[i], sep='')
+}
+
+conf <- as.data.frame(glmmTMB::ranef(model, condVar = TRUE))
+year_conf <- subset(conf,term %in% yearlist & conf$grpvar == 'NAFOdiv')
+
+
+ef_year_final$sd <- year_conf$condsd
+
+ef_year_final <- ef_year_final %>%  #manually create the 95% CIs
+  mutate(lower = effect - (1.96*sd)) %>%
+  mutate(upper = effect + (1.96*sd))
+
+
+df_wide <- ef_year_final %>%
+  select(NAFOdiv, year, effect) %>%      # Keep only the relevant columns
+  pivot_wider(names_from = NAFOdiv,      # Use NAFO divisions as column names
+              values_from = effect) %>%
+  arrange(year) 
+
+df_wide$year <- as.character(df_wide$year)
+df_wide$year <- as.numeric(df_wide$year)
+
+cor_matrix <- cor(df_wide[,2:7])
+
+#jpeg(file="NAFO_corr.jpeg", res=400, units="in", width=8, height=5)
+corrplot(cor_matrix, method = 'number')
+#dev.off()
+
+}
+NAFO_year_corr_plot()
+```
+
+This correlation matrix shows the similarity between different months over years.
+```{r Correlation Matrix 2, echo=TRUE}
+
+####################################
+##################################
+
+month_year_corr_plot <- function(model=NM6.2,df=gutcod_clean, subset=FALSE){  #function pulls a model, using mod11 and cod df
+  
+  effects <- ranef(model) 
+  ef_year <- as.data.frame(x=effects$cond$month) #create large df with main effect of month on its own
+  month <- rep(seq(1,12), 45)
+  year <- rep(seq(1977,2021),each=12)
+  
+  ef_year_final <- as.data.frame(year,month)
+  ef_year_final <- tibble::rownames_to_column(ef_year_final, var= 'month')
+  
+  ints <- character()
+  all_ints <- c()
+  
+  for (i in 1:ncol(ef_year)) {
+    ints <- ef_year[i]
+    all_ints <- c(all_ints, ints[,1])
+  }
+  ef_year_final$effect <- all_ints
+  
+  yearlist <- as.character(seq(1977,2021))
+  monthlist <- c('month1','month2','month3','month4','month5','month6',
+                 'month7','month8','month9','month10','month11','month12')
+  
+  for (i in 1:length(yearlist)) {
+    yearlist[i] <- paste('year', yearlist[i], sep='')
+  }
+  
+  conf <- as.data.frame(glmmTMB::ranef(model, condVar = TRUE))
+  year_conf <- subset(conf, conf$grpvar == 'month') #term %in% monthlist &
+  
+  
+  ef_year_final$sd <- year_conf$condsd
+  
+  ef_year_final <- ef_year_final %>%
+    mutate(lower = effect - 1.96*sd) %>%
+    mutate(upper = effect + 1.96*sd)
+  
+  ef_year_final$month <- as.numeric(ef_year_final$month)
+  ef_year_final$month <- as.factor(ef_year_final$month)
+  ef_year_final$month <- ordered(ef_year_final$month)
+  
+  # subset plot
+  sub <- ''
+  if (subset == TRUE) {
+    sub <- '_subset'
+    mainmonths <- c(4,5,6,10,11,12)
+    ef_year_final <- ef_year_final %>%
+      filter(month %in% mainmonths)
+  }
+  
+  
+  monthnames <- c('1'='January', '2'='February', '3'='March', '4'='April', '5'='May',
+                  '6'='June', '7'='July', '8'='August', '9'='September', '10'='October',
+                  '11'='November', '12'='December')
+  
+  
+  ef_year_final$month <- as.numeric(ef_year_final$month)
+  ef_year_final$year <- as.character(ef_year_final$year)
+  ef_year_final$year <- as.numeric(ef_year_final$year)
+  
+  
+  df_wide <- ef_year_final %>%
+    select(month, year, effect) %>%      # Keep only the relevant columns
+    pivot_wider(names_from = month,      # Use NAFO divisions as column names
+                values_from = effect,
+                names_sort = TRUE) %>%
+    arrange(year) 
+
+  cor_matrix <- cor(df_wide[,2:13])
+  
+  #jpeg(file="month_corr.jpeg", res=400, units="in", width=8, height=5)
+  corrplot(cor_matrix, method = 'number')
+  #dev.off()
+
+}
+month_year_corr_plot()
+```
+
+Lastly this correlation matrix shows the similarity between NAFO Division for 
+the predicted weight of a 40cm cod in May.
+```{r Correlation Matrix 3, echo=TRUE}
+
+
+pred_wt_corr_plot <- function(df,month){
+  
+  df_clean <- as.data.frame(df)
+  
+  df_clean$facet <- as.numeric(df_clean$facet)
+  df_clean$x <- as.character(df_clean$x)
+  df_clean$x <- as.numeric(df_clean$x)
+  
+  numeric_df <- df_clean[sapply(df_clean, is.numeric)]
+  
+  df_wide <- numeric_df %>%
+    select(x, predicted, facet) %>%      # Keep only the relevant columns
+    pivot_wider(names_from = facet,      # Use NAFO divisions as column names
+                values_from = predicted) %>%
+    arrange(x)
+  
+  df_wide <- df_wide[,2:7]
+  
+  names(df_wide) <- c("2J", "3K", "3L", 
+                 "3N", "3O", "3P")
+  
+  cor_matrix <- cor(df_wide)
+  
+  name <- paste("pred_weight_",month,"_corr.jpeg")
+  name <- str_replace_all(string=name, pattern=" ", repl="")
+  
+  #jpeg(file=name, res=400, units="in", width=8, height=5)
+  corrplot(cor_matrix, method = 'number')
+  #dev.off()
+}
+pred_wt_corr_plot(nafo_pred_june,'june')
+pred_wt_corr_plot(nafo_pred_may,'may')
+
+```
