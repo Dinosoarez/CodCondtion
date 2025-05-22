@@ -50,62 +50,146 @@ larger cod.
 
 ```{r Models, echo=TRUE}
     #model testing from motel table in Results
-#                                       fixed eff       quadratic dispersion factor
-#M1 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv, dispformula = ~ poly(length, 2), data=gutcod_clean)
+#                                       fixed eff       
+#M1 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv,
+#               dispformula =~ poly (log(length),2), data=gutcod_clean)
 #AIC        BIC
-#-200514.5 -200418.3
-#                                                     dum var allows for single AR1 eff instead of interaction
-#M2 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-211185.5 -211070.1
+#-202212.5 -202116.4
+#nodisp
+#AIC        BIC
+#-199213.91 -199136.98
+
+#M2 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-212998.9 -212883.5
+#nodisp
+#AIC        BIC
+#-208447.9 -208351.7
 
 #M3 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                lenbin, dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-212754.8 -212620.2
+#                lenbin,
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-214715.3 -214580.7 
+#nodisp
+#AIC        BIC
+#-210048.7 -209933.3
 
 #M4 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) + ar1(month-1|lenbin) +
-#                lenbin, dispformula = ~ poly(length, 2), data=gutcod_clean)
-#no conergence
+#                lenbin,
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-215671.2 -215517.3
+#nodisp
+#AIC        BIC
+#-211302.6 -211168.0
 
 #M5 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) +
-#                ar1(month-1|lenbin), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-213762.8 -213628.1
+#                ar1(month-1|lenbin),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-215666.8 -215532.2
+#nodisp
+#AIC        BIC
+#-211300.2 -211184.8
 
 #M6 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) +
-#                ar1(month-1|lenbin) + ar1(month-1|year), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-219716.5 -219562.7
+#                ar1(month-1|lenbin) + ar1(month-1|year),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-221781.4 -221627.5
+#nodisp
+#AIC        BIC
+#-216677.9 -216543.3
 
 #M7 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) +
-#                ar1(month-1|lenbin) + ar1(month-1|year) + ar1(year-1|dum), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#no convergence
+#                ar1(month-1|lenbin) + ar1(month-1|year) + ar1(year-1|dum),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#na          na
+#nodisp
+#AIC        BIC
+#-216686.7 -216532.8
 
 #M8 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|dum), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-216747.9 -216594.0
+#                ar1(month-1|lenbin) + ar1(year-1|dum),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#na          na
+#nodisp
+#AIC        BIC
+#-214101.5 -213966.9
 
 #M9 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|dum) + ar1(year-1|month), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#no conv
+#                ar1(month-1|lenbin) + ar1(year-1|dum) + ar1(year-1|month),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-221792.4 -221619.3
+#nodisp
+#AIC        BIC
+#-216694.1 -216540.2
 
 #M10 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|month), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-219716.4 -219562.5
+#                ar1(month-1|lenbin) + ar1(year-1|month),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-221780.0 -221626.2 
+#nodisp
+#AIC        BIC
+#-216659.8 -216525.2
 
 #M11 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(month-1|year), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-219725.9 -219552.8
+#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(month-1|year),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#na          na
+#nodisp
+#AIC        BIC
+#-216694.0 -216540.1
 
 #M12 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|month) + sex, dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-219715.7 -219552.2
+#                ar1(month-1|lenbin) + ar1(year-1|month) + sex,
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-221778.2 -221614.7
+#nodisp
+#AIC        BIC
+#-216670.2 -216526.0
 
 #M13 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|month) + sex + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-221065.7 -220883.0 
+#                ar1(month-1|lenbin) + ar1(year-1|month) + sex + ar1(year-1|NAFOdiv),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-223228.6 -223045.8
+#nodisp
+#AIC        BIC
+#-217887.6 -217724.1
 
 #M14 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month|dum) +
-#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean)
-#-221076.5 -220903.4
+#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(year-1|NAFOdiv),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+#AIC        BIC
+#-223230.2 -223057.1
 
+#nodisp
+#AIC        BIC
+#-217877.3 -217723.4
+
+#save(M14, file = 'M14.RData')
+load('M14.RData')
+
+
+#TM14 <- glmmTMB(log(weight) ~ log(length) + NAFOdiv + ar1(month-1|dum) + 
+#                ar1(month-1|lenbin) + ar1(year-1|month) + ar1(year-1|NAFOdiv),
+#                dispformula =~ poly (log(length),2), data=gutcod_clean)
+
+#only works with this disp formula
+#AIC        BIC
+#-194417.83 -194244.73 
+
+#save(TM14, file = 'TM14.RData')
+load('TM14.RData')
 
 #number of fixed and random effects in model table p & q
 
@@ -119,18 +203,6 @@ num_effs <- function(model){
   print(num_random)
 }
 
-
-#model 14 is equivilent to NM6.2, old notation was retained
-#NM6.2 <- M14
-
-#NM6.2 <- glmmTMB(log(gutwt) ~ log(length) + NAFOdiv + ar1(month-1|dum) + ar1(month-1|lenbin) +
-#     ar1(year-1|month) + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean)   
-load('NM6.2.RData')
-
-#NM6.2_total_weight <- glmmTMB(log(weight) ~ log(length) + NAFOdiv + ar1(month-1|dum) + ar1(month-1|lenbin) +
-#                ar1(year-1|month) + ar1(year-1|NAFOdiv), dispformula = ~ poly(length, 2), data=gutcod_clean) 
-load('NM6.2_total_weight.RData')
-
 ```
 
 
@@ -143,18 +215,19 @@ May:
 ```{r Predicted Weight May, echo=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 
-#nafo_2j_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[2J]','month[5]'), margin='empirical') 
-#nafo_3k_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3K]','month[5]'), margin='empirical') 
-#nafo_3l_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3L]','month[5]'), margin='empirical') 
-#nafo_3n_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3N]','month[5]'), margin='empirical') 
-#nafo_3o_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3O]','month[5]'), margin='empirical') 
-#nafo_3p_year_may <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3P]','month[5]'), margin='empirical') 
+#nafo_2j_year_may <- predict_response(M14, c('year','length[40]','NAFOdiv[2J]','month[5]'), margin='empirical') 
+#nafo_3k_year_may <- predict_response(M14, c('year','length[40]','NAFOdiv[3K]','month[5]'), margin='empirical') 
+#nafo_3l_year_may <- predict_response(M14, c('year','length[40]','NAFOdiv[3L]','month[5]'), margin='empirical') 
+#nafo_3n_year_may <- predict_response(M14, c('year','length[40]','NAFOdiv[3N]','month[5]'), margin='empirical') 
+#nafo_3o_year_may <- predict_response(M14, c('year','length[40]','NAFOdiv[3O]','month[5]'), margin='empirical') 
+#nafo_3p_year_may <- predict_response(M14, c('year','length[40]','NAFOdiv[3P]','month[5]'), margin='empirical') 
 
 #concatonate all the dfs into one MAY
 
 #nafo_pred_may <- bind_rows(nafo_2j_year_may,nafo_3k_year_may,nafo_3l_year_may,nafo_3n_year_may,
 #             nafo_3o_year_may,nafo_3p_year_may)
 
+#save(nafo_pred_may, file= 'nafo_pred_may.RData')
 load('nafo_pred_may.RData')
 
 nafo_year_pred_weight <- function(prediction_df){ #takes df made from ggpredict
@@ -190,16 +263,17 @@ nafo_year_pred_weight(nafo_pred_may)
 June:
 ```{r Predicted Weight June, echo=FALSE}
 #june
-#nafo_2j_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[2J]','month[6]'), margin='empirical') 
-#nafo_3k_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3K]','month[6]'), margin='empirical') 
-#nafo_3l_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3L]','month[6]'), margin='empirical') 
-#nafo_3n_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3N]','month[6]'), margin='empirical') 
-#nafo_3o_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3O]','month[6]'), margin='empirical') 
-#nafo_3p_year_june <- predict_response(NM6.2, c('year','length[40]','NAFOdiv[3P]','month[6]'), margin='empirical') 
+#nafo_2j_year_june <- predict_response(M14, c('year','length[40]','NAFOdiv[2J]','month[6]'), margin='empirical') 
+#nafo_3k_year_june <- predict_response(M14, c('year','length[40]','NAFOdiv[3K]','month[6]'), margin='empirical') 
+#nafo_3l_year_june <- predict_response(M14, c('year','length[40]','NAFOdiv[3L]','month[6]'), margin='empirical') 
+#nafo_3n_year_june <- predict_response(M14, c('year','length[40]','NAFOdiv[3N]','month[6]'), margin='empirical') 
+#nafo_3o_year_june <- predict_response(M14, c('year','length[40]','NAFOdiv[3O]','month[6]'), margin='empirical') 
+#nafo_3p_year_june <- predict_response(M14, c('year','length[40]','NAFOdiv[3P]','month[6]'), margin='empirical') 
 
 #nafo_pred_june <- bind_rows(nafo_2j_year_june,nafo_3k_year_june,nafo_3l_year_june
 #                               ,nafo_3n_year_june,nafo_3o_year_june,nafo_3p_year_june)
 
+#save(nafo_pred_june, file= 'nafo_pred_june.RData')
 load('nafo_pred_june.RData')
 nafo_year_pred_weight(nafo_pred_june)
 ```
@@ -218,6 +292,7 @@ month_effect <- function(model,df=gutcod_clean){
   
   ef_month_final <- mutate(conf, lower= condval - (2*condsd), upper= condval + (2*condsd))  #use sd to create the 95% CI
   ef_month_final <- ef_month_final[1:12,c(3,5:8)]    #select and keep relevant columns
+  ef_month_final[1,1] <- 'month1'
   ef_month_final$term <- str_replace(ef_month_final$term, "month", "")  #take month out of var name
   ef_month_final$term <- as.integer(ef_month_final$term)
   ef_month_final$term <- as.factor(ef_month_final$term)   
@@ -245,7 +320,7 @@ month_effect <- function(model,df=gutcod_clean){
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
   
-month_effect(NM6.2)
+month_effect(M14)
 ```
 Next we plot the fixed effect of NAFO Division. This effect includes the intercept effect
 so the results are negative. This can be ignored as the intercept effect does not change the 
@@ -293,7 +368,7 @@ nafo_effect <- function(model,df=gutcod_clean){
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-nafo_effect(NM6.2)
+nafo_effect(M14)
 ```
 The Year by NAFO division effect is our first random interaction effect. This plot 
 shows how condition has changed over time in each division.
@@ -376,7 +451,7 @@ year_nafo_effect <- function(model,df=gutcod_clean){  #function pulls a model, u
   
 }
 
-year_nafo_effect(NM6.2)
+year_nafo_effect(M14)
 ```
 The month by length bin effect shows the seasonality of condtion for different length 
 groups.
@@ -440,7 +515,7 @@ month_bin_effect <- function(model,df=gutcod_clean){  #
   #name <- str_replace_all(string=name, pattern=" ", repl="")
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
-month_bin_effect(NM6.2)
+month_bin_effect(M14)
 ```
 The year by month effect shows how seasonality affects condition over time. This effect
 highlights how factors like prey availibility changes over time.
@@ -527,9 +602,9 @@ year_month_effect <- function(model,df=gutcod_clean, subset=FALSE){  #function p
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-year_month_effect(NM6.2)
+year_month_effect(M14)
 
-year_month_effect(NM6.2, gutcod_clean, TRUE)
+year_month_effect(M14, gutcod_clean, TRUE)
 
 ```
 ## Total vs Gutted Model Effects
@@ -642,13 +717,11 @@ totalgut_nafo_year_effect <- function(totalmodel,totaldf,gutmodel){
           strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
   
   p
-  #modname <- deparse(substitute(model))
-  #name <- paste(modname,sub,"_nafo_year_effect.jpeg")
-  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #name <- "TM14vsM14_nafo_year_effect.jpeg"
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-totalgut_nafo_year_effect(NM6.2_total_weight,gutcod_clean,NM6.2)
+totalgut_nafo_year_effect(TM14,gutcod_clean,M14)
 
 ```
 
@@ -728,7 +801,7 @@ totalgut_year_month_effect <- function(totalmodel,totaldf,gutmodel, subset=FALSE
   #subset plot
   sub <- ''
   if (subset == TRUE) {
-    sub <- '_subset'
+    sub <- 'subset'
     mainmonths <- c(4,5,6,10,11,12)
     total_ef_year_final <- total_ef_year_final %>%
     filter(month %in% mainmonths)
@@ -765,15 +838,14 @@ totalgut_year_month_effect <- function(totalmodel,totaldf,gutmodel, subset=FALSE
           strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")),
           legend.position="none")
   p
-  #modname <- deparse(substitute(model))
-  #name <- paste(modname,sub,"_year_month_effect.jpeg")
+  #name <- paste("TM14vsM14_",sub,"_year_month_effect.jpeg")
   #name <- str_replace_all(string=name, pattern=" ", repl="")
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-totalgut_year_month_effect(NM6.2_total_weight,gutcod_clean,NM6.2)
+totalgut_year_month_effect(TM14,gutcod_clean,M14)
 
-totalgut_year_month_effect(NM6.2_total_weight,gutcod_clean,NM6.2, TRUE)
+totalgut_year_month_effect(TM14,gutcod_clean,M14, TRUE)
 ```
 
 Next we have the month grouped by length bin effect.
@@ -859,13 +931,11 @@ totalgut_month_bin_effect <- function(totalmodel,totaldf,gutmodel){
           strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
   
   p
-  #modname <- deparse(substitute(model))
-  #name <- paste(modname,sub,"_month_bin_effect.jpeg")
-  #name <- str_replace_all(string=name, pattern=" ", repl="")
+  #name <- "TM14vsM14_month_bin_effect.jpeg"
   #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-totalgut_month_bin_effect(NM6.2_total_weight,gutcod_clean,NM6.2)
+totalgut_month_bin_effect(TM14,gutcod_clean,M14)
 ```
 
 ## Model Residuals
@@ -923,9 +993,9 @@ total_resids <- function(model, df=gutcod_clean) {
             panel.background = element_blank(), axis.line = element_line(colour = "black"),
             text=element_text(family="Times New Roman"))
     print(p)
-    #name <- paste(modname,"_year_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    # name <- paste(modname,"_year_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
     p <- ggplot(data=residualdf, aes(x=year, y=resid))+  #changed residualdf to df
       facet_wrap(~month, scales = 'free_x')+
@@ -944,9 +1014,9 @@ total_resids <- function(model, df=gutcod_clean) {
             panel.background = element_blank(), axis.line = element_line(colour = "black"),
             text=element_text(family="Times New Roman"))
     print(p)
-    #name <- paste(modname,"_year_month_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    # name <- paste(modname,"_year_month_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
   
     
     p <- ggplot(data=residualdf, aes(x=length, y=resid))+
@@ -968,9 +1038,9 @@ total_resids <- function(model, df=gutcod_clean) {
             text=element_text(family="Times New Roman"),
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     print(p)
-    #name <- paste(modname,"_month_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_month_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=year, y=resid))+
       facet_wrap(~month,scales = 'free_x', labeller = as_labeller(monthnames))+
@@ -993,9 +1063,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_month_year_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_month_year_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=length, y=resid))+
       facet_wrap(~season)+
@@ -1017,9 +1087,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_season_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    # name <- paste(modname,"_season_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
     p <- ggplot(data=residualdf, aes(x=year, y=resid))+
       facet_wrap(~NAFOdiv)+
@@ -1041,9 +1111,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_NAFO_year_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+    # name <- paste(modname,"_NAFO_year_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
     p <- ggplot(data=residualdf, aes(x=length, y=resid))+
       facet_wrap(~NAFOdiv)+
@@ -1065,9 +1135,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_NAFO_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_NAFO_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=NAFOdiv, y=resid))+
       facet_wrap(~month, labeller = as_labeller(monthnames))+
@@ -1089,9 +1159,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_NAFO_month_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_NAFO_month_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=month, y=resid))+
       facet_wrap(~NAFOdiv)+
@@ -1113,9 +1183,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_NAFO_month2_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_NAFO_month2_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=length, y=resid))+
       facet_wrap(~lenbin, scales= 'free_x')+
@@ -1137,9 +1207,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_lenbin_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_lenbin_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=month, y=resid))+
       facet_wrap(~lenbin, scales= 'free_x')+
@@ -1161,9 +1231,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_lenbin_month_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_lenbin_month_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=length, y=resid))+
       facet_wrap(~maturity, scales= 'free_x')+
@@ -1185,9 +1255,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_maturity_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_maturity_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
     p <- ggplot(data=residualdf, aes(x=length, y=resid))+
       facet_wrap(~sex, scales= 'free_x')+
@@ -1209,9 +1279,9 @@ total_resids <- function(model, df=gutcod_clean) {
             strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
     
     print(p)
-    #name <- paste(modname,"_sex_resids.jpeg")
-    #name <- str_replace_all(string=name, pattern=" ", repl="")
-    #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+    # name <- paste(modname,"_sex_resids.jpeg")
+    # name <- str_replace_all(string=name, pattern=" ", repl="")
+    # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$year), FUN=mean)
       p <- ggplot(data=year_df, aes(x=Group.1, y=x))+
@@ -1232,9 +1302,9 @@ total_resids <- function(model, df=gutcod_clean) {
               text=element_text(family="Times New Roman"),
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       print(p)
-      #name <- paste(modname,"_avg_year_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
+      # name <- paste(modname,"_avg_year_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5) 
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$year,residualdf$NAFOdiv), FUN=mean)
       
@@ -1258,9 +1328,9 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_NAFO_year_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_NAFO_year_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$year,residualdf$month), FUN=mean)
       
@@ -1284,9 +1354,9 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_month_year_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_month_year_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 
       year_df<-aggregate(residualdf$resid, by = list(residualdf$month,residualdf$NAFOdiv), FUN=mean)
       
@@ -1309,9 +1379,9 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_NAFO_month_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_NAFO_month_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$month,residualdf$NAFOdiv), FUN=mean)
       
@@ -1334,9 +1404,9 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_month_NAFO_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_month_NAFO_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$lenbin), FUN=mean)
       
@@ -1358,9 +1428,9 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_lenbin_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_lenbin_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$lenbin,residualdf$month), FUN=mean)
@@ -1384,9 +1454,9 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_month_lenbin_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_month_lenbin_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
     
       year_df<-aggregate(residualdf$resid, by = list(residualdf$sex), FUN=mean)
       
@@ -1408,13 +1478,13 @@ total_resids <- function(model, df=gutcod_clean) {
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
       
       print(p)
-      #name <- paste(modname,"_avg_sex_resids.jpeg")
-      #name <- str_replace_all(string=name, pattern=" ", repl="")
-      #ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+      # name <- paste(modname,"_avg_sex_resids.jpeg")
+      # name <- str_replace_all(string=name, pattern=" ", repl="")
+      # ggsave(filename = name, device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-total_resids(NM6.2)
-#total_resids(NM6.2_total_weight)
+total_resids(M14)
+#total_resids(TM14)
 ```
 
 
@@ -1440,11 +1510,11 @@ predicted_actual <- function(model){
               text=element_text(family="Times New Roman"),
               strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
   p
-  #ggsave(filename = 'predicted_actual.jpeg', device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
+  # ggsave(filename = 'predicted_actual.jpeg', device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-predicted_actual(NM6.2)
-predicted_actual(NM6.2_total_weight)
+predicted_actual(M14)
+#predicted_actual(TM14)
 ```
 
 Similar to the last plot we also show this plot as a histogram.
@@ -1470,14 +1540,14 @@ predicted_actual_histogram <- function(model){
   #ggsave(filename = 'predicted_actual_histogram.jpeg', device = "jpeg", plot = p, dpi=400, units="in", width=8, height=5)
 }
 
-predicted_actual_histogram(NM6.2)
-predicted_actual_histogram(NM6.2_total_weight)
+predicted_actual_histogram(M14)
+#predicted_actual_histogram(TM14)
 ```
 
 ## Correlation Plots
 Next we show the correlation matrix between the different NAFO divisions over time
 ```{r Correlation Matrix 1, echo=TRUE}
-NAFO_year_corr_plot <- function(model=NM6.2,df=gutcod_clean){  #function pulls a model, using mod11 and cod df
+NAFO_year_corr_plot <- function(model=M14,df=gutcod_clean){  #function pulls a model, using mod11 and cod df
 
 numyears <- nlevels(df$year) #understands the amount of years in dataset
 nafos <- levels(df$NAFOdiv) #creates vector of NAFO divs in order
@@ -1532,7 +1602,7 @@ df_wide$year <- as.numeric(df_wide$year)
 
 cor_matrix <- cor(df_wide[,2:7])
 
-#jpeg(file="NAFO_corr.jpeg", res=400, units="in", width=8, height=5)
+#jpeg(file="M14_NAFO_corr.jpeg", res=400, units="in", width=8, height=5)
 corrplot(cor_matrix, method = 'number')
 #dev.off()
 
@@ -1546,7 +1616,7 @@ This correlation matrix shows the similarity between different months over years
 ####################################
 ##################################
 
-month_year_corr_plot <- function(model=NM6.2,df=gutcod_clean, subset=FALSE){  #function pulls a model, using mod11 and cod df
+month_year_corr_plot <- function(model=M14,df=gutcod_clean, subset=FALSE){  #function pulls a model, using mod11 and cod df
   
   effects <- ranef(model) 
   ef_year <- as.data.frame(x=effects$cond$month) #create large df with main effect of month on its own
@@ -1616,7 +1686,7 @@ month_year_corr_plot <- function(model=NM6.2,df=gutcod_clean, subset=FALSE){  #f
 
   cor_matrix <- cor(df_wide[,2:13])
   
-  #jpeg(file="month_corr.jpeg", res=400, units="in", width=8, height=5)
+  #jpeg(file="M14_month_corr.jpeg", res=400, units="in", width=8, height=5)
   corrplot(cor_matrix, method = 'number')
   #dev.off()
 
@@ -1624,7 +1694,7 @@ month_year_corr_plot <- function(model=NM6.2,df=gutcod_clean, subset=FALSE){  #f
 month_year_corr_plot()
 ```
 
-Lastly this correlation matrix shows the similarity between NAFO Division for 
+This correlation matrix shows the similarity between NAFO Division for 
 the predicted weight of a 40cm cod in May.
 ```{r Correlation Matrix 3, echo=TRUE}
 
@@ -1652,7 +1722,7 @@ pred_wt_corr_plot <- function(df,month){
   
   cor_matrix <- cor(df_wide)
   
-  name <- paste("pred_weight_",month,"_corr.jpeg")
+  name <- paste("M14_pred_weight_",month,"_corr.jpeg")
   name <- str_replace_all(string=name, pattern=" ", repl="")
   
   #jpeg(file=name, res=400, units="in", width=8, height=5)
@@ -1661,5 +1731,56 @@ pred_wt_corr_plot <- function(df,month){
 }
 pred_wt_corr_plot(nafo_pred_june,'june')
 pred_wt_corr_plot(nafo_pred_may,'may')
+
+```
+
+Lastly, we plot the predicted total and gutted weight for a 40cm atlantic cod
+across years.
+```{r Predicted Total and Gutted Weight, echo=TRUE}
+
+#pred by year total vs gut
+
+#pred_total <- predict_response(TM14, c('year','length[40]'), margin='empirical')
+#save(pred_total, file='pred_total.RData')
+load('pred_total.RData')
+
+#pred_gut <- predict_response(M14, c('year','length[40]'), margin='empirical')
+#save(pred_gut, file='pred_gut.RData')
+load('pred_gut.RData')
+
+
+total_gut_pred_weight <- function(total,gut){
+  #combine dfs
+  total$group <- 'Total Weight Model'
+  gut$group <- 'Gutted Weight Model'
+  pred_df <- bind_rows(total,gut)
+  
+  #plot ontop of one another
+  p <- ggplot(pred_df, aes(x=x, y=predicted, group=group))  +
+    geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = "grey70", alpha=0.5) +
+    geom_line(aes(color=group),linewidth=1)+
+    xlab('Year')+
+    ylab('Predicted Weight (kg)')+
+    theme_bw()+
+    scale_x_discrete(breaks = c(seq(1980,2020, 10))) +
+    theme(legend.title = element_blank(),
+          legend.text = element_text(size =12),
+          axis.text.x = element_text(size=12, colour = "black"),
+          axis.text.y = element_text(size=12, colour = "black"),
+          axis.title.x = element_text(size=15, face="bold", colour = "black"),    
+          axis.title.y = element_text(size=15, face="bold", colour = "black"),
+          strip.text = element_text(size =15),panel.grid.major = element_blank(), panel.grid.minor = 
+          element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          text=element_text(family="Times New Roman"),
+          strip.text.x = element_text(margin = margin(0.0,0,0.0,0, "cm")))
+  
+  p
+}
+
+#jpeg(file="total_gut_pred_weight.jpeg", res=400, units="in", width=8, height=5)
+total_gut_pred_weight(pred_total,pred_gut)
+#dev.off()
+
 
 ```
